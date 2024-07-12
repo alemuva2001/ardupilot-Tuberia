@@ -274,6 +274,38 @@ void AC_AttitudeControl::input_euler_angle_roll_pitch_euler_rate_yaw(float euler
     float euler_pitch_angle = radians(euler_pitch_angle_cd * 0.01f);
     float euler_yaw_rate = radians(euler_yaw_rate_cds * 0.01f);
 
+    float pitch_deg = degrees(AP::ahrs().get_pitch());
+    float roll_deg = degrees(AP::ahrs().get_roll());
+    float yaw_deg = degrees(AP::ahrs().get_yaw());
+
+    static float pitch_ref = 0;
+    static int c = 0;
+
+
+    if(abs(pitch_deg) > 30) {
+        
+        if (c>200){
+            gcs().send_text(MAV_SEVERITY_INFO, "Pitch_ref: %f",pitch_ref);
+            c = 0;
+        }
+        c++;
+
+        euler_roll_angle = roll_deg;
+        euler_pitch_angle = pitch_deg;
+        euler_yaw_rate = yaw_deg;
+
+        float ref = rc().channel(CH_7)->percent_input();
+
+        if (ref > 75) { //Si el boton esta en 3 posicion, avanza en una dirección.
+            pitch_ref += 0.001; //target_pitch - 0.005;
+        } else if (ref < 25){ //Si el botón está en la 1 posición, avanza en la otra dirección.
+            pitch_ref -= 0.001; //target_pitch + 0.005; 
+        } else {    //En otro caso, se queda quieto.
+            pitch_ref = pitch_ref; //target_pitch;
+        }
+
+    }
+
     // calculate the attitude target euler angles
     _attitude_target.to_euler(_euler_angle_target);
 

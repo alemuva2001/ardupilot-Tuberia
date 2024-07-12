@@ -29,6 +29,12 @@
 #include <AP_HAL/AP_HAL.h>
 #include <AP_Param/AP_Param.h>
 
+#include <AP_Common/AP_Common.h>
+#include <AP_HAL/AP_HAL_Macros.h>
+#include <utility>
+#include <AP_Logger/AP_Logger.h>
+#include <GCS_MAVLink/GCS.h>
+
 class AP_RobotisServo {
 public:
     AP_RobotisServo();
@@ -71,6 +77,13 @@ private:
 
     uint32_t last_send_us;
     uint32_t delay_time_us;
+
+public:
+
+    int   degree_to_servo(float degree);
+    void  public_send_command(int value);
+    float  computeServoAngle(float pitch_degA, int* nv, float* angleS);
+    void  inicializa();
 };
 
 #endif  // AP_ROBOTISSERVO_ENABLED

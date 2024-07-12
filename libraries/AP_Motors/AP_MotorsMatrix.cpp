@@ -19,6 +19,12 @@
 
 extern const AP_HAL::HAL& hal;
 
+AP_RobotisServo dynamixel;
+uint16_t Herz = 1000;
+float pitch_degA = 0;
+int n = 0;
+float angleS = 0;
+
 // init
 void AP_MotorsMatrix::init(motor_frame_class frame_class, motor_frame_type frame_type)
 {
@@ -172,6 +178,59 @@ void AP_MotorsMatrix::output_to_motors()
                 }
             }
             break;
+    }
+
+    //ModoPipe
+    float mod3 = rc().channel(CH_8)->percent_input();
+
+    //Selección del modo
+    if(mod3>85){
+        if(Herz<900) gcs().send_text(MAV_SEVERITY_INFO, "Servos deshabilitados");
+        Herz = 1000;
+    } else {
+
+    //Inicialización Servos (Solo la primera vez)
+        if(Herz > 600){
+            for (uint8_t h = 0; h<10; h++)
+            gcs().send_text(MAV_SEVERITY_INFO, "Inicializando Servos");
+            dynamixel.inicializa();
+        }
+    
+    //Giro de los servos
+        if(Herz > 20){
+
+            //float v = rc().channel(CH_7)->percent_input();
+            //angleS = 360*v/100;
+
+            pitch_degA = dynamixel.computeServoAngle(pitch_degA, &n, &angleS);
+            gcs().send_text(MAV_SEVERITY_INFO, "Angulo Motores: %f", angleS);
+            angleS = dynamixel.degree_to_servo(180+angleS);
+            gcs().send_text(MAV_SEVERITY_INFO, "Servo: %f", angleS);
+            dynamixel.public_send_command(int(angleS));
+        
+            Herz = 0;
+        }
+
+        Herz++;
+    }
+    //Motores
+
+    if(degrees(AP::ahrs().get_pitch())>30){
+        float thrust = float(rc().channel(CH_1)->percent_input())/100;
+
+        if(Herz == 10) gcs().send_text(MAV_SEVERITY_INFO, "Thrust: %f", thrust);
+
+
+        if(thrust < 0.1) thrust = actuator_spin_up_to_ground_idle();
+        if(thrust >0.95) thrust = 0.95;
+
+        if ((_spool_state == SpoolState::SHUT_DOWN)) thrust = 0;
+
+        for (i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
+            if (motor_enabled[i]) {
+                _actuator[i] = thrust;
+            }
+        }
     }
 
     // convert output to PWM and send to each motor
