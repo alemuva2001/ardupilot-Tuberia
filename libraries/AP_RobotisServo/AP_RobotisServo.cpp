@@ -36,6 +36,8 @@
 
 #include "AP_RobotisServo.h"
 
+#define USE_ROLL_ANGLE  // Comentar si se quiere usar el pitch para controlar (Cambiar parámetro AHRS_ORIENTATION)
+
 #if AP_ROBOTISSERVO_ENABLED
 
 #include <AP_HAL/AP_HAL.h>
@@ -436,18 +438,20 @@ void AP_RobotisServo::public_send_command(int value){
     return;
 }
 
+#endif  // AP_ROBOTISSERVO_ENABLED
+
+//ALE
+#ifndef USE_ROLL_ANGLE
+
+//Calculo del angulo de los servos a partir del pitch
 float AP_RobotisServo::computeServoAngle(float pitch_degA, int* nv, float* angleS){
     
-    float pitch_deg = degrees(AP::ahrs().get_pitch());
     float roll_deg = degrees(AP::ahrs().get_roll());
+    float pitch_deg = degrees(AP::ahrs().get_pitch());
 
     if ((abs(roll_deg) > abs(pitch_deg)) && (abs(roll_deg) >160)){
         pitch_deg = 180-pitch_deg;
     } 
-
-    // float v = rc().channel(CH_7)->percent_input();
-    // v = v/100;
-    // // gcs().send_text(MAV_SEVERITY_INFO, "V: %f", v);
 
     float mass = 2;
     float grav = 9.81;
@@ -457,35 +461,57 @@ float AP_RobotisServo::computeServoAngle(float pitch_degA, int* nv, float* angle
 
     pitch_rad = pitch_rad+(atanf((N*sinf(pitch_rad))/(mass*grav-N*cosf(pitch_rad))));
 
-    pitch_rad = degrees(pitch_rad);
+    pitch_rad = -70*sinf(pitch_rad)+180;
+
+    //pitch_rad = degrees(pitch_rad);
+
     *angleS = pitch_rad;
 
-    gcs().send_text(MAV_SEVERITY_INFO, "Actual Pitch: %f", pitch_deg);
+    //gcs().send_text(MAV_SEVERITY_INFO, "Angulo Servo: %f", pitch_rad);
 
     //Cuenta el numero de vueltas
     if (pitch_degA-pitch_deg > 100) (*nv)++;
     if (pitch_degA-pitch_deg < -100) (*nv)--;
 
-    // if (pitch_deg<-100){
-    //     angleS = 0.723*pitch_deg-49.85;
-    // } else if (pitch_deg>100)
-    // {
-    //     angleS = 0.723*pitch_deg+49.85;
-    // } else{
-    //     angleS = (360.0/(1.0+expf(-pitch_deg/40.0)))*0.8-180.0*0.8;
-    // }
-
-    *angleS = *angleS + (*nv)*360;
+    *angleS = *angleS - (*nv)*360;
 
     pitch_degA = pitch_deg;
-
-    return pitch_degA;
 
 //     // gcs().send_text(MAV_SEVERITY_INFO, "Desired Pitch: %.3f\n", target_pitch/8.33);
 //     // gcs().send_text(MAV_SEVERITY_INFO, "Roll: %f", roll_deg);
 //     // gcs().send_text(MAV_SEVERITY_INFO, "Pitch: %f", pitch_deg);
 //     // gcs().send_text(MAV_SEVERITY_INFO, "PitchAnt: %f", pitch_degA);
-//     // gcs().send_text(MAV_SEVERITY_INFO, "n: %d", nv);
+        //gcs().send_text(MAV_SEVERITY_INFO, "n: %d", *nv);
+
+    return pitch_degA;
 }
 
-#endif  // AP_ROBOTISSERVO_ENABLED
+#else
+
+//Calculo del angulo de los servos a partir del roll
+float AP_RobotisServo::computeServoAngle(float roll_degA, int* nv, float* angleS){
+
+    float roll_deg = degrees(AP::ahrs().get_roll());
+
+    float roll_rad = radians(roll_deg);
+
+    if (roll_deg<0)
+        roll_rad = -50*sinf(roll_rad)+180; //50
+    else
+        roll_rad = -50*sinf(roll_rad)+180; //75
+
+    *angleS = roll_rad;
+
+    roll_degA = roll_deg;
+
+//     gcs().send_text(MAV_SEVERITY_INFO, "Desired Pitch: %.3f\n", target_pitch/8.33);
+//     gcs().send_text(MAV_SEVERITY_INFO, "Roll: %f", roll_deg);
+//     gcs().send_text(MAV_SEVERITY_INFO, "Pitch: %f", pitch_deg);
+//     gcs().send_text(MAV_SEVERITY_INFO, "PitchAnt: %f", pitch_degA);
+//     gcs().send_text(MAV_SEVERITY_INFO, "n: %d", *nv);
+
+    return roll_degA;
+}
+
+#endif  // USE_ROLL_ANGLE
+//FIN ALE

@@ -15,6 +15,8 @@ extern const AP_HAL::HAL& hal;
  #define AC_ATTITUDE_CONTROL_ANGLE_LIMIT_MIN     10.0   // Min lean angle so that vehicle can maintain limited control
 #endif
 
+#define USE_ROLL_ANGLE  // Comentar si se quiere usar el pitch para controlar (Cambiar parámetro AHRS_ORIENTATION)
+
 AC_AttitudeControl *AC_AttitudeControl::_singleton;
 
 // table of user settable parameters
@@ -276,36 +278,77 @@ void AC_AttitudeControl::input_euler_angle_roll_pitch_euler_rate_yaw(float euler
 
     float pitch_deg = degrees(AP::ahrs().get_pitch());
     float roll_deg = degrees(AP::ahrs().get_roll());
-    float yaw_deg = degrees(AP::ahrs().get_yaw());
+    //float yaw_deg = degrees(AP::ahrs().get_yaw());
 
-    static float pitch_ref = 0;
-    static int c = 0;
+//ALE
+    static float ref = 0;   //Variable para guardar la referencia
+    static int c = 0;       //Contador para mensajes de depuración
 
+    float cambiaRef = rc().channel(CH_7)->percent_input();
 
-    if(abs(pitch_deg) > 30) {
-        
-        if (c>200){
-            gcs().send_text(MAV_SEVERITY_INFO, "Pitch_ref: %f",pitch_ref);
-            c = 0;
-        }
-        c++;
+    uint8_t ModoPipe = 0;
 
-        euler_roll_angle = roll_deg;
-        euler_pitch_angle = pitch_deg;
-        euler_yaw_rate = yaw_deg;
+    // static int Herz = 600;
 
-        float ref = rc().channel(CH_7)->percent_input();
+    // if(Herz > 500) {
+    //     dynamixel2.inicializa();
+    //     Herz = 0;
+    // }
 
-        if (ref > 75) { //Si el boton esta en 3 posicion, avanza en una dirección.
-            pitch_ref += 0.001; //target_pitch - 0.005;
-        } else if (ref < 25){ //Si el botón está en la 1 posición, avanza en la otra dirección.
-            pitch_ref -= 0.001; //target_pitch + 0.005; 
-        } else {    //En otro caso, se queda quieto.
-            pitch_ref = pitch_ref; //target_pitch;
-        }
-
+    //Angulo de referencia en centigrados
+    if (cambiaRef > 75) { //Si el boton esta en 3 posicion, avanza en una dirección.
+        ref += 0.005; //target_pitch - 0.005;
+    } else if (cambiaRef < 25){ //Si el botón está en la 1 posición, avanza en la otra dirección.
+        ref -= 0.005; //target_pitch + 0.005; 
+    } else {    //En otro caso, se queda quieto.
+        ref = ref; //target_pitch;
     }
 
+    if(rc().channel(CH_6)->percent_input()<15) ModoPipe = 1;
+    else ModoPipe = 0;
+
+    if (rc().channel(CH_8)->percent_input()<15) ref = 0;
+    if (rc().channel(CH_8)->percent_input()>85) ref = 180;
+
+    AP::logger().Write("REFERENCIA","TimeUS, S1","Qf", AP_HAL::micros64(), (double)ref);
+
+    if (c>200 && ModoPipe){
+        gcs().send_text(MAV_SEVERITY_INFO, "Referencia: %f", ref);
+        gcs().send_text(MAV_SEVERITY_INFO, "Actual Roll: %f", roll_deg);
+        gcs().send_text(MAV_SEVERITY_INFO, "Actual Pitch: %f", pitch_deg);
+        c = 0;
+    }
+    c++;
+
+#ifndef USE_ROLL_ANGLE
+
+    if(ModoPipe) euler_pitch_angle = radians(ref);
+    else euler_pitch_angle = radians(pitch_deg);
+
+    if (c==150  && ModoPipe){
+        float pitch_C = pitch_deg;
+        if ((abs(roll_deg) > abs(pitch_deg)) && (abs(roll_deg) >160)){
+            pitch_C = 180-pitch_deg;
+        } 
+        if (ModoPipe) gcs().send_text(MAV_SEVERITY_INFO, "Pitch_Calculado: %f",pitch_C);
+        AP::logger().Write("CPitch","TimeUS, S1","Qf", AP_HAL::micros64(), (double)pitch_C);
+    }
+    c++;
+
+    if (rc().channel(CH_8)->percent_input()<85) {
+        euler_roll_angle = 0;
+        //euler_pitch_angle = pitch_deg;
+        euler_yaw_rate = 0;
+    }
+
+#else
+
+    if(ModoPipe) euler_roll_angle = radians(ref);
+    else euler_roll_angle = radians(roll_deg);
+
+#endif
+
+//FIN ALE
     // calculate the attitude target euler angles
     _attitude_target.to_euler(_euler_angle_target);
 

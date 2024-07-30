@@ -17,13 +17,22 @@
 #include "AP_MotorsMatrix.h"
 #include <AP_Vehicle/AP_Vehicle_Type.h>
 
-extern const AP_HAL::HAL& hal;
+//ALE
+#define USE_ROLL_ANGLE  // Comentar si se quiere usar el pitch para controlar (Cambiar parámetro AHRS_ORIENTATION)
 
-AP_RobotisServo dynamixel;
-uint16_t Herz = 1000;
-float pitch_degA = 0;
-int n = 0;
-float angleS = 0;
+#include <AP_Math/AP_Math.h> 
+
+AP_RobotisServo dynamixel;  //Objeto para acceder a las funciones de AP_RobotisServo.cpp
+uint16_t Herz = 1000;       //Variable para la frecuencia de mandar comandos a los servos
+float pitch_degA = 0;       //Variable para 
+int n = 0;                  //Variable para almacenar el numero de vueltas
+float angleS = 0;           //Variable para almacenar el ángulo de los servos
+uint8_t ModoPipe = 0;       //Variable para cambiar de modo
+
+uint16_t c = 0;             //Contador para mensajes de depuración
+
+//FIN ALE
+extern const AP_HAL::HAL& hal;
 
 // init
 void AP_MotorsMatrix::init(motor_frame_class frame_class, motor_frame_type frame_type)
@@ -94,6 +103,14 @@ bool AP_MotorsMatrix::init(uint8_t expected_num_motors)
     normalise_rpy_factors();
 
     set_update_rate(_speed_hz);
+
+    static int init=10;
+
+    if (init>0){
+        dynamixel.inicializa();
+        gcs().send_text(MAV_SEVERITY_INFO, "Inicializando Dynamixel Servo");
+        init--;
+    }
 
     return true;
 }
@@ -180,32 +197,42 @@ void AP_MotorsMatrix::output_to_motors()
             break;
     }
 
+//ALE
     //ModoPipe
-    float mod3 = rc().channel(CH_8)->percent_input();
+    if(rc().channel(CH_6)->percent_input()<15) ModoPipe = 1;
+    else ModoPipe = 0;
 
     //Selección del modo
-    if(mod3>85){
-        if(Herz<900) gcs().send_text(MAV_SEVERITY_INFO, "Servos deshabilitados");
-        Herz = 1000;
+    if(!ModoPipe){
+        if(Herz<900) {
+            gcs().send_text(MAV_SEVERITY_INFO, "Servos deshabilitados");
+            Herz = 910;
+        }
     } else {
 
     //Inicialización Servos (Solo la primera vez)
         if(Herz > 600){
-            for (uint8_t h = 0; h<10; h++)
+            for (uint8_t h = 0; h<10; h++) {
             gcs().send_text(MAV_SEVERITY_INFO, "Inicializando Servos");
+#ifndef USE_ROLL_ANGLE
+            gcs().send_text(MAV_SEVERITY_INFO, "Using Pitch Angle");
+#else
+            gcs().send_text(MAV_SEVERITY_INFO, "Using Roll Angle");
+#endif
+            }
             dynamixel.inicializa();
         }
     
     //Giro de los servos
         if(Herz > 20){
 
-            //float v = rc().channel(CH_7)->percent_input();
-            //angleS = 360*v/100;
-
             pitch_degA = dynamixel.computeServoAngle(pitch_degA, &n, &angleS);
-            gcs().send_text(MAV_SEVERITY_INFO, "Angulo Motores: %f", angleS);
+            //gcs().send_text(MAV_SEVERITY_INFO, "Angulo Motores: %f", angleS);
+#ifndef USE_ROLL_ANGLE
             angleS = dynamixel.degree_to_servo(180+angleS);
-            gcs().send_text(MAV_SEVERITY_INFO, "Servo: %f", angleS);
+#else
+            angleS = dynamixel.degree_to_servo(180-angleS);
+#endif
             dynamixel.public_send_command(int(angleS));
         
             Herz = 0;
@@ -213,30 +240,16 @@ void AP_MotorsMatrix::output_to_motors()
 
         Herz++;
     }
-    //Motores
-
-    if(degrees(AP::ahrs().get_pitch())>30){
-        float thrust = float(rc().channel(CH_1)->percent_input())/100;
-
-        if(Herz == 10) gcs().send_text(MAV_SEVERITY_INFO, "Thrust: %f", thrust);
-
-
-        if(thrust < 0.1) thrust = actuator_spin_up_to_ground_idle();
-        if(thrust >0.95) thrust = 0.95;
-
-        if ((_spool_state == SpoolState::SHUT_DOWN)) thrust = 0;
-
-        for (i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
-            if (motor_enabled[i]) {
-                _actuator[i] = thrust;
-            }
-        }
-    }
+    if (c>200) c = 0;
+    c++;
+//FIN ALE
 
     // convert output to PWM and send to each motor
     for (i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
         if (motor_enabled[i]) {
             rc_write(i, output_to_pwm(_actuator[i]));
+
+            if(c == 11 && ModoPipe) gcs().send_text(MAV_SEVERITY_INFO, "_actuator %d: %f", i+1, _actuator[i]); //Imprime salida de los motores
         }
     }
 }
@@ -333,10 +346,34 @@ void AP_MotorsMatrix::output_armed_stabilizing()
     // calculate amount of yaw we can fit into the throttle range
     // this is always equal to or less than the requested yaw from the pilot or rate controller
     float yaw_allowed = 1.0f; // amount of yaw we can fit in
+
+//ALE
+    // CAMBIOS PARA NUEVO MIXER
+#ifndef USE_ROLL_ANGLE
+    float tilted_roll_factor[4] = {0.0,0.0,0.0,0.0};
+    float tilted_pitch_factor[4] = {-1,+1,-1,+1};
+    float tilted_yaw_factor[4] = {0.0,0.0,0.0,0.0};
+    float tilted_throttle_factor[4] = {1.0,1.0,1.0,1.0}; 
+
+    if(c == 11 && ModoPipe) gcs().send_text(MAV_SEVERITY_INFO, "pitch_thrust: %f", pitch_thrust);
+
+#else
+
+    float tilted_roll_factor[4] = {1,-1,+1,-1};
+    float tilted_pitch_factor[4] = {0.0,0.0,0.0,0.0};
+    float tilted_yaw_factor[4] = {0.0,0.0,0.0,0.0};
+    float tilted_throttle_factor[4] = {1.0,1.0,1.0,1.0}; 
+
+    if(c == 11 && ModoPipe) gcs().send_text(MAV_SEVERITY_INFO, "roll_thrust: %f", roll_thrust);
+
+#endif
+
+//FIN ALE
     for (uint8_t i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
         if (motor_enabled[i]) {
             // calculate the thrust outputs for roll and pitch
-            _thrust_rpyt_out[i] = roll_thrust * _roll_factor[i] + pitch_thrust * _pitch_factor[i];
+            if (ModoPipe) _thrust_rpyt_out[i] = roll_thrust * tilted_roll_factor[i] + pitch_thrust * tilted_pitch_factor[i];
+            else _thrust_rpyt_out[i] = roll_thrust * _roll_factor[i] + pitch_thrust * _pitch_factor[i];
 
             // Check the maximum yaw control that can be used on this channel
             // Exclude any lost motors if thrust boost is enabled
@@ -394,7 +431,9 @@ void AP_MotorsMatrix::output_armed_stabilizing()
     float rpy_high = -1.0f; // highest thrust value
     for (uint8_t i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
         if (motor_enabled[i]) {
-            _thrust_rpyt_out[i] = _thrust_rpyt_out[i] + yaw_thrust * _yaw_factor[i];
+
+            if (ModoPipe) _thrust_rpyt_out[i] = _thrust_rpyt_out[i] + yaw_thrust * tilted_yaw_factor[i];
+            else _thrust_rpyt_out[i] = _thrust_rpyt_out[i] + yaw_thrust * _yaw_factor[i];
 
             // record lowest roll + pitch + yaw command
             if (_thrust_rpyt_out[i] < rpy_low) {
@@ -452,7 +491,8 @@ void AP_MotorsMatrix::output_armed_stabilizing()
     const float throttle_thrust_best_plus_adj = throttle_thrust_best_rpy + thr_adj;
     for (uint8_t i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
         if (motor_enabled[i]) {
-            _thrust_rpyt_out[i] = (throttle_thrust_best_plus_adj * _throttle_factor[i]) + (rpy_scale * _thrust_rpyt_out[i]);
+            if (ModoPipe) _thrust_rpyt_out[i] = (throttle_thrust_best_plus_adj * tilted_throttle_factor[i]) + (rpy_scale * _thrust_rpyt_out[i]);
+            else _thrust_rpyt_out[i] = (throttle_thrust_best_plus_adj * _throttle_factor[i]) + (rpy_scale * _thrust_rpyt_out[i]);
         }
     }
 

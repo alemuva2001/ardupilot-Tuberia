@@ -35,7 +35,7 @@
 #include <AP_Logger/AP_Logger.h>
 #include <GCS_MAVLink/GCS.h>
 
-class AP_RobotisServo {
+class AP_RobotisServo {        //euler_pitch_angle = pitch_deg;
 public:
     AP_RobotisServo();
 
@@ -78,12 +78,14 @@ private:
     uint32_t last_send_us;
     uint32_t delay_time_us;
 
+//ALE
 public:
 
     int   degree_to_servo(float degree);
     void  public_send_command(int value);
     float  computeServoAngle(float pitch_degA, int* nv, float* angleS);
-    void  inicializa();
+    void  inicializa(); //Esta funcion se ha pasado de private a public
+//FIN ALE
 };
 
 #endif  // AP_ROBOTISSERVO_ENABLED
