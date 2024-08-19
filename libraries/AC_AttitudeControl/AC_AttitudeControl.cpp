@@ -19,6 +19,14 @@ extern const AP_HAL::HAL& hal;
 
 AC_AttitudeControl *AC_AttitudeControl::_singleton;
 
+//ALE
+
+    extern AP_RobotisServo dynamixel;  //Objeto para acceder a las funciones de AP_RobotisServo.cpp
+    extern float angleS;           //Variable para almacenar el ángulo de los servos
+    uint16_t her = 1000;       //Variable para la frecuencia de mandar comandos a los servos
+
+//FIN ALE
+
 // table of user settable parameters
 const AP_Param::GroupInfo AC_AttitudeControl::var_info[] = {
 
@@ -276,6 +284,8 @@ void AC_AttitudeControl::input_euler_angle_roll_pitch_euler_rate_yaw(float euler
     float euler_pitch_angle = radians(euler_pitch_angle_cd * 0.01f);
     float euler_yaw_rate = radians(euler_yaw_rate_cds * 0.01f);
 
+    //gcs().send_text(MAV_SEVERITY_INFO, "anguloServos: %f", euler_roll_angle);
+
     float pitch_deg = degrees(AP::ahrs().get_pitch());
     float roll_deg = degrees(AP::ahrs().get_roll());
     //float yaw_deg = degrees(AP::ahrs().get_yaw());
@@ -319,6 +329,21 @@ void AC_AttitudeControl::input_euler_angle_roll_pitch_euler_rate_yaw(float euler
         c = 0;
     }
     c++;
+
+    for(static int init = 10; init>0; init--){
+        dynamixel.inicializa();
+        gcs().send_text(MAV_SEVERITY_INFO, "Inicializando Dynamixel2 Servo");
+    }
+
+    if(her > 20 && !ModoPipe){
+        gcs().send_text(MAV_SEVERITY_INFO, "Angulo Motores: %f", degrees(euler_roll_angle));
+        angleS = dynamixel.degree_to_servo(degrees(euler_roll_angle)+180);
+        dynamixel.public_send_command(int(angleS));
+
+        her = 0;
+    }
+
+    her++;
 
 #ifndef USE_ROLL_ANGLE
 

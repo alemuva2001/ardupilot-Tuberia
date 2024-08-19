@@ -104,6 +104,7 @@ bool AP_MotorsMatrix::init(uint8_t expected_num_motors)
 
     set_update_rate(_speed_hz);
 
+//ALE
     static int init=10;
 
     if (init>0){
@@ -111,7 +112,7 @@ bool AP_MotorsMatrix::init(uint8_t expected_num_motors)
         gcs().send_text(MAV_SEVERITY_INFO, "Inicializando Dynamixel Servo");
         init--;
     }
-
+//FIN ALE
     return true;
 }
 
@@ -234,14 +235,7 @@ void AP_MotorsMatrix::output_to_motors()
             angleS = dynamixel.degree_to_servo(180-angleS);
 #endif
 
-///////////////////////////////////////////////////////////////////////////
-            // float angulo_servo = 0;
-            // angulo_servo = 360*rc().channel(CH_7)->percent_input()/100;
-            // gcs().send_text(MAV_SEVERITY_INFO, "Angulo Motores: %f", angulo_servo);
-            // angulo_servo = dynamixel.degree_to_servo(180-angulo_servo);
-            // gcs().send_text(MAV_SEVERITY_INFO, "Angulo Servo: %f", angulo_servo);
-///////////////////////////////////////////////////////////////////////////////
-            dynamixel.public_send_command(int(angleS)); //angleS
+            dynamixel.public_send_command(int(angleS));
         
             Herz = 0;
         }
@@ -257,7 +251,7 @@ void AP_MotorsMatrix::output_to_motors()
         if (motor_enabled[i]) {
             rc_write(i, output_to_pwm(_actuator[i]));
 
-            if(c == 11 && ModoPipe) gcs().send_text(MAV_SEVERITY_INFO, "_actuator %d: %f", i+1, _actuator[i]); //Imprime salida de los motores
+            if(c == 11) gcs().send_text(MAV_SEVERITY_INFO, "_actuator %d: %f", i+1, _actuator[i]); //Imprime salida de los motores
         }
     }
 }
