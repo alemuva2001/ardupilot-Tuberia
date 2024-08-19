@@ -233,7 +233,15 @@ void AP_MotorsMatrix::output_to_motors()
 #else
             angleS = dynamixel.degree_to_servo(180-angleS);
 #endif
-            dynamixel.public_send_command(int(angleS));
+
+///////////////////////////////////////////////////////////////////////////
+            // float angulo_servo = 0;
+            // angulo_servo = 360*rc().channel(CH_7)->percent_input()/100;
+            // gcs().send_text(MAV_SEVERITY_INFO, "Angulo Motores: %f", angulo_servo);
+            // angulo_servo = dynamixel.degree_to_servo(180-angulo_servo);
+            // gcs().send_text(MAV_SEVERITY_INFO, "Angulo Servo: %f", angulo_servo);
+///////////////////////////////////////////////////////////////////////////////
+            dynamixel.public_send_command(int(angleS)); //angleS
         
             Herz = 0;
         }
