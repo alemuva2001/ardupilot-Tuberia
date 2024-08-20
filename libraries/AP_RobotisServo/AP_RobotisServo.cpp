@@ -254,7 +254,7 @@ void AP_RobotisServo::configure_servos(void)
     send_command(101, 64, 1, 1);
 
     // use position control mode
-    send_command(BROADCAST_ID, REG_OPERATING_MODE, OPMODE_POS_CONTROL, 1);
+    send_command(BROADCAST_ID, REG_OPERATING_MODE, OPMODE_EXT_POS_CONTROL, 1);
 
     // enable torque control
     send_command(BROADCAST_ID, REG_TORQUE_ENABLE, 1, 1);

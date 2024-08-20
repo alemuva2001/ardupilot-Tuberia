@@ -337,7 +337,7 @@ void AC_AttitudeControl::input_euler_angle_roll_pitch_euler_rate_yaw(float euler
 
     if(her > 20 && !ModoPipe){
         gcs().send_text(MAV_SEVERITY_INFO, "Angulo Motores: %f", degrees(euler_roll_angle));
-        angleS = dynamixel.degree_to_servo(degrees(euler_roll_angle)+180);
+        angleS = dynamixel.degree_to_servo(180-degrees(euler_roll_angle));
         dynamixel.public_send_command(int(angleS));
 
         her = 0;
@@ -369,7 +369,7 @@ void AC_AttitudeControl::input_euler_angle_roll_pitch_euler_rate_yaw(float euler
 #else
 
     if(ModoPipe) euler_roll_angle = radians(ref);
-    else euler_roll_angle = radians(roll_deg);
+    //else euler_roll_angle = radians(roll_deg);
 
 #endif
 
