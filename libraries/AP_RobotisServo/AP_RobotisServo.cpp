@@ -250,8 +250,7 @@ void AP_RobotisServo::configure_servos(void)
     send_command(BROADCAST_ID, REG_STATUS_RETURN, STATUS_RETURN_READ, 1);
 
     //Enciende el led para los servos que hemos añadido
-    send_command(100, 64, 1, 1);
-    send_command(101, 64, 1, 1);
+    send_command(BROADCAST_ID, 64, 1, 1);
 
     // use position control mode
     send_command(BROADCAST_ID, REG_OPERATING_MODE, OPMODE_EXT_POS_CONTROL, 1);
@@ -414,12 +413,14 @@ void AP_RobotisServo::update()
     }
 }
 
+//ALE
+
 //Proporciona el angulo del servo teniendo en cuenta la relación de transmision del engranaje
 int AP_RobotisServo::degree_to_servo(float degree)
 {
     float n;
     int r;
-    n = 1.5;
+    n = 1.5; //Relación de transmision del engranaje
 
     r = (4095.0)/(360.0)*degree*n;
 
@@ -428,11 +429,13 @@ int AP_RobotisServo::degree_to_servo(float degree)
     return r;
 }
 
+//Inicializa los servos
 void AP_RobotisServo::inicializa(){
     init();
     configure_servos();
 }
 
+//Envia la posicion deseada a todos los servos
 void AP_RobotisServo::public_send_command(int value){
     send_command(BROADCAST_ID, REG_GOAL_POSITION, value, 4);
     return;
@@ -440,7 +443,6 @@ void AP_RobotisServo::public_send_command(int value){
 
 #endif  // AP_ROBOTISSERVO_ENABLED
 
-//ALE
 #ifndef USE_ROLL_ANGLE
 
 //Calculo del angulo de los servos a partir del pitch
@@ -489,7 +491,7 @@ float AP_RobotisServo::computeServoAngle(float pitch_degA, int* nv, float* angle
 #else
 
 //Calculo del angulo de los servos a partir del roll
-float AP_RobotisServo::computeServoAngle(float roll_degA, int* nv, float* angleS){
+void AP_RobotisServo::computeServoAngle(float* angleS){
 
     float roll_deg = degrees(AP::ahrs().get_roll());
 
@@ -502,15 +504,11 @@ float AP_RobotisServo::computeServoAngle(float roll_degA, int* nv, float* angleS
 
     *angleS = roll_rad;
 
-    roll_degA = roll_deg;
-
 //     gcs().send_text(MAV_SEVERITY_INFO, "Desired Pitch: %.3f\n", target_pitch/8.33);
 //     gcs().send_text(MAV_SEVERITY_INFO, "Roll: %f", roll_deg);
 //     gcs().send_text(MAV_SEVERITY_INFO, "Pitch: %f", pitch_deg);
 //     gcs().send_text(MAV_SEVERITY_INFO, "PitchAnt: %f", pitch_degA);
 //     gcs().send_text(MAV_SEVERITY_INFO, "n: %d", *nv);
-
-    return roll_degA;
 }
 
 #endif  // USE_ROLL_ANGLE

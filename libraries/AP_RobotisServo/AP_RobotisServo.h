@@ -83,7 +83,7 @@ public:
 
     int   degree_to_servo(float degree);
     void  public_send_command(int value);
-    float  computeServoAngle(float pitch_degA, int* nv, float* angleS);
+    void  computeServoAngle(float* angleS);
     void  inicializa(); //Esta funcion se ha pasado de private a public
 //FIN ALE
 };

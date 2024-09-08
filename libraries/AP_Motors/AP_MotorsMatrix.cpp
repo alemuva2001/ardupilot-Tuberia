@@ -24,8 +24,6 @@
 
 AP_RobotisServo dynamixel;  //Objeto para acceder a las funciones de AP_RobotisServo.cpp
 uint16_t Herz = 1000;       //Variable para la frecuencia de mandar comandos a los servos
-float pitch_degA = 0;       //Variable para 
-int n = 0;                  //Variable para almacenar el numero de vueltas
 float angleS = 0;           //Variable para almacenar el ángulo de los servos
 uint8_t ModoPipe = 0;       //Variable para cambiar de modo
 
@@ -104,15 +102,15 @@ bool AP_MotorsMatrix::init(uint8_t expected_num_motors)
 
     set_update_rate(_speed_hz);
 
-//ALE
-    static int init=10;
+// //ALE
+//     static int init=10;
 
-    if (init>0){
-        dynamixel.inicializa();
-        gcs().send_text(MAV_SEVERITY_INFO, "Inicializando Dynamixel Servo");
-        init--;
-    }
-//FIN ALE
+//     if (init>0){
+//         dynamixel.inicializa();
+//         gcs().send_text(MAV_SEVERITY_INFO, "Inicializando Dynamixel Servo");
+//         init--;
+//     }
+// //FIN ALE
     return true;
 }
 
@@ -227,8 +225,8 @@ void AP_MotorsMatrix::output_to_motors()
     //Giro de los servos
         if(Herz > 20){
 
-            pitch_degA = dynamixel.computeServoAngle(pitch_degA, &n, &angleS);
-            //gcs().send_text(MAV_SEVERITY_INFO, "Angulo Motores: %f", angleS);
+            dynamixel.computeServoAngle(&angleS);
+
 #ifndef USE_ROLL_ANGLE
             angleS = dynamixel.degree_to_servo(180+angleS);
 #else
@@ -242,8 +240,11 @@ void AP_MotorsMatrix::output_to_motors()
 
         Herz++;
     }
+
+    //Contador para depuracion de las salidas de los motores
     if (c>200) c = 0;
     c++;
+
 //FIN ALE
 
     // convert output to PWM and send to each motor
@@ -251,6 +252,7 @@ void AP_MotorsMatrix::output_to_motors()
         if (motor_enabled[i]) {
             rc_write(i, output_to_pwm(_actuator[i]));
 
+            //Depuracion de las salidas de los motores
             if(c == 11) gcs().send_text(MAV_SEVERITY_INFO, "_actuator %d: %f", i+1, _actuator[i]); //Imprime salida de los motores
         }
     }
@@ -370,7 +372,8 @@ void AP_MotorsMatrix::output_armed_stabilizing()
 
 #endif
 
-//FIN ALE
+//FIN ALE    Hay 3 modificaciones en las lineas siguientes para modificar las salidas if(ModoPipe) .........
+
     for (uint8_t i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
         if (motor_enabled[i]) {
             // calculate the thrust outputs for roll and pitch
