@@ -25,6 +25,8 @@ AC_AttitudeControl *AC_AttitudeControl::_singleton;
     extern float angleS;           //Variable para almacenar el ángulo de los servos
     uint16_t her = 1000;       //Variable para la frecuencia de mandar comandos a los servos
 
+    extern uint8_t ini;
+
 //FIN ALE
 
 // table of user settable parameters
@@ -286,8 +288,10 @@ void AC_AttitudeControl::input_euler_angle_roll_pitch_euler_rate_yaw(float euler
 
     //gcs().send_text(MAV_SEVERITY_INFO, "anguloServos: %f", euler_roll_angle);
 
+#ifndef USE_ROLL_ANGLE
     float pitch_deg = degrees(AP::ahrs().get_pitch());
     float roll_deg = degrees(AP::ahrs().get_roll());
+#endif
     //float yaw_deg = degrees(AP::ahrs().get_yaw());
 
 //ALE
@@ -297,13 +301,6 @@ void AC_AttitudeControl::input_euler_angle_roll_pitch_euler_rate_yaw(float euler
     float cambiaRef = rc().channel(CH_7)->percent_input();
 
     uint8_t ModoPipe = 0;
-
-    // static int Herz = 600;
-
-    // if(Herz > 500) {
-    //     dynamixel2.inicializa();
-    //     Herz = 0;
-    // }
 
     //Angulo de referencia en centigrados
     if (cambiaRef > 75) { //Si el boton esta en 3 posicion, avanza en una dirección.
@@ -323,22 +320,18 @@ void AC_AttitudeControl::input_euler_angle_roll_pitch_euler_rate_yaw(float euler
     AP::logger().Write("REFERENCIA","TimeUS, S1","Qf", AP_HAL::micros64(), (double)ref);
 
     if (c>200 && ModoPipe){
-        gcs().send_text(MAV_SEVERITY_INFO, "Referencia: %f", ref);
-        gcs().send_text(MAV_SEVERITY_INFO, "Actual Roll: %f", roll_deg);
-        gcs().send_text(MAV_SEVERITY_INFO, "Actual Pitch: %f", pitch_deg);
+        //gcs().send_text(MAV_SEVERITY_INFO, "Referencia: %f", ref);
+        //gcs().send_text(MAV_SEVERITY_INFO, "Actual Roll: %f", roll_deg);
+        //gcs().send_text(MAV_SEVERITY_INFO, "Actual Pitch: %f", pitch_deg);
         c = 0;
     }
     c++;
 
-    for(static int init = 10; init>0; init--){
-        dynamixel.inicializa();
-        gcs().send_text(MAV_SEVERITY_INFO, "Inicializando Dynamixel2 Servo");
-    }
-
-    if(her > 20 && !ModoPipe){
-        gcs().send_text(MAV_SEVERITY_INFO, "Angulo Motores: %f", degrees(euler_roll_angle));
+    if(her > 20 && !ModoPipe && !(ini>0)){
+        //gcs().send_text(MAV_SEVERITY_INFO, "Angulo Motores: %f", degrees(euler_roll_angle));
         angleS = dynamixel.degree_to_servo(180-degrees(euler_roll_angle));
         dynamixel.public_send_command(int(angleS));
+        AP::logger().Write("SANG","TimeUS, S1","Qf", AP_HAL::micros64(), (double)angleS);
 
         her = 0;
     }

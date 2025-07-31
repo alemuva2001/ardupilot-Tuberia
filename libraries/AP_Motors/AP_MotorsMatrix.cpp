@@ -29,6 +29,8 @@ uint8_t ModoPipe = 0;       //Variable para cambiar de modo
 
 uint16_t c = 0;             //Contador para mensajes de depuración
 
+uint8_t ini = 10;
+
 //FIN ALE
 extern const AP_HAL::HAL& hal;
 
@@ -102,15 +104,6 @@ bool AP_MotorsMatrix::init(uint8_t expected_num_motors)
 
     set_update_rate(_speed_hz);
 
-// //ALE
-//     static int init=10;
-
-//     if (init>0){
-//         dynamixel.inicializa();
-//         gcs().send_text(MAV_SEVERITY_INFO, "Inicializando Dynamixel Servo");
-//         init--;
-//     }
-// //FIN ALE
     return true;
 }
 
@@ -201,25 +194,25 @@ void AP_MotorsMatrix::output_to_motors()
     if(rc().channel(CH_6)->percent_input()<15) ModoPipe = 1;
     else ModoPipe = 0;
 
+    while(ini>0){
+        dynamixel.inicializa();
+        gcs().send_text(MAV_SEVERITY_INFO, "Init Dynamixel Servo %d", ini);
+        ini--;
+    }
+
+    if(rc().channel(CH_6)->percent_input()>85) ini = 10;
+
     //Selección del modo
     if(!ModoPipe){
         if(Herz<900) {
-            gcs().send_text(MAV_SEVERITY_INFO, "Servos deshabilitados");
+            gcs().send_text(MAV_SEVERITY_INFO, "Servos Deshabilitados");
             Herz = 910;
         }
-    } else {
+    } else if (!(ini>0)) {
 
-    //Inicialización Servos (Solo la primera vez)
-        if(Herz > 600){
-            for (uint8_t h = 0; h<10; h++) {
-            gcs().send_text(MAV_SEVERITY_INFO, "Inicializando Servos");
-#ifndef USE_ROLL_ANGLE
-            gcs().send_text(MAV_SEVERITY_INFO, "Using Pitch Angle");
-#else
-            gcs().send_text(MAV_SEVERITY_INFO, "Using Roll Angle");
-#endif
-            }
-            dynamixel.inicializa();
+        if(Herz>900) {
+            gcs().send_text(MAV_SEVERITY_INFO, "Servos Habilitados");
+            Herz = 910;
         }
     
     //Giro de los servos
@@ -253,7 +246,7 @@ void AP_MotorsMatrix::output_to_motors()
             rc_write(i, output_to_pwm(_actuator[i]));
 
             //Depuracion de las salidas de los motores
-            if(c == 11) gcs().send_text(MAV_SEVERITY_INFO, "_actuator %d: %f", i+1, _actuator[i]); //Imprime salida de los motores
+            //if(c == 11) gcs().send_text(MAV_SEVERITY_INFO, "_actuator %d: %f", i+1, _actuator[i]); //Imprime salida de los motores
         }
     }
 }
@@ -368,7 +361,7 @@ void AP_MotorsMatrix::output_armed_stabilizing()
     float tilted_yaw_factor[4] = {0.0,0.0,0.0,0.0};
     float tilted_throttle_factor[4] = {1.0,1.0,1.0,1.0}; 
 
-    if(c == 11 && ModoPipe) gcs().send_text(MAV_SEVERITY_INFO, "roll_thrust: %f", roll_thrust);
+    //if(c == 11 && ModoPipe) gcs().send_text(MAV_SEVERITY_INFO, "roll_thrust: %f", roll_thrust);
 
 #endif
 

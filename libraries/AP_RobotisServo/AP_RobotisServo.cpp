@@ -249,8 +249,12 @@ void AP_RobotisServo::configure_servos(void)
     // disable replies unless we read
     send_command(BROADCAST_ID, REG_STATUS_RETURN, STATUS_RETURN_READ, 1);
 
-    //Enciende el led para los servos que hemos añadido
+    gcs().send_text(MAV_SEVERITY_INFO, "LED_ON\n");
+
     send_command(BROADCAST_ID, 64, 1, 1);
+
+    //Enciende el led para los servos que hemos añadido
+    send_command(BROADCAST_ID, 65, 1, 1);
 
     // use position control mode
     send_command(BROADCAST_ID, REG_OPERATING_MODE, OPMODE_EXT_POS_CONTROL, 1);
